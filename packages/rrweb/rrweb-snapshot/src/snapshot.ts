@@ -870,7 +870,10 @@ function serializeElementNode(
       attributes.rr_scrollTop = n.scrollTop;
     }
   }
-  // block element
+  // block element — capture the visual box (position/size after
+  // transforms), flow dimensions (layout size excluding transforms),
+  // and computed position so the replay can preserve document flow
+  // for in-flow elements and position out-of-flow elements correctly.
   if (needBlock) {
     const { width, height, left, top } = n.getBoundingClientRect();
     attributes = {
@@ -879,6 +882,9 @@ function serializeElementNode(
       rr_height: `${height}px`,
       rr_left: `${Math.floor(left + (doc.defaultView?.scrollX || 0))}px`,
       rr_top: `${Math.floor(top + (doc.defaultView?.scrollY || 0))}px`,
+      rr_flow_width: `${n.offsetWidth}px`,
+      rr_flow_height: `${n.offsetHeight}px`,
+      rr_position: doc.defaultView?.getComputedStyle(n)?.position || 'static',
     };
   }
   // iframe

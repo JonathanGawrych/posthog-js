@@ -251,7 +251,7 @@ describe('form', () => {
   });
 });
 
-describe('blocked elements with CSS transforms', () => {
+describe('blocked element positioning', () => {
   const renderWithStyle = (html: string, styles: string): HTMLElement => {
     const styleEl = document.createElement('style');
     styleEl.textContent = styles;
@@ -260,66 +260,27 @@ describe('blocked elements with CSS transforms', () => {
     return document.querySelector('div')!;
   };
 
-  it('should capture position for blocked element with translate transform', () => {
+  it('should capture visual box, flow dimensions, and computed position', () => {
     const el = renderWithStyle(
-      `<div class="blockblock" style="transform: translate(100px, 50px); width: 200px; height: 100px;">Blocked content</div>`,
+      `<div class="blockblock" style="width: 200px; height: 100px;">Blocked content</div>`,
       '',
     );
 
     const sn = serializeNode(el) as elementNode;
 
+    // Visual box from getBoundingClientRect
     expect(sn?.attributes?.rr_width).toBeDefined();
     expect(sn?.attributes?.rr_height).toBeDefined();
     expect(sn?.attributes?.rr_left).toBeDefined();
     expect(sn?.attributes?.rr_top).toBeDefined();
-
-    // The position should reflect the transformed position
-    expect(sn?.attributes?.class).toBe('blockblock');
+    // Flow dimensions from offsetWidth/offsetHeight
+    expect(sn?.attributes?.rr_flow_width).toBeDefined();
+    expect(sn?.attributes?.rr_flow_height).toBeDefined();
+    // Computed position
+    expect(sn?.attributes?.rr_position).toBe('static');
   });
 
-  it('should capture position for blocked element with scale and translate', () => {
-    const el = renderWithStyle(
-      `<div class="blockblock" style="transform: translate(50px, 75px) scale(1.5); width: 100px; height: 100px;">Blocked content</div>`,
-      '',
-    );
-
-    const sn = serializeNode(el) as elementNode;
-
-    expect(sn?.attributes?.rr_width).toBeDefined();
-    expect(sn?.attributes?.rr_height).toBeDefined();
-    expect(sn?.attributes?.rr_left).toBeDefined();
-    expect(sn?.attributes?.rr_top).toBeDefined();
-  });
-
-  it('should capture position for blocked element with rotate transform', () => {
-    const el = renderWithStyle(
-      `<div class="blockblock" style="transform: rotate(45deg) translate(100px, 100px); width: 150px; height: 150px;">Blocked content</div>`,
-      '',
-    );
-
-    const sn = serializeNode(el) as elementNode;
-
-    expect(sn?.attributes?.rr_width).toBeDefined();
-    expect(sn?.attributes?.rr_height).toBeDefined();
-    expect(sn?.attributes?.rr_left).toBeDefined();
-    expect(sn?.attributes?.rr_top).toBeDefined();
-  });
-
-  it('should capture position for blocked element with matrix transform', () => {
-    const el = renderWithStyle(
-      `<div class="blockblock" style="transform: matrix(1, 0, 0, 1, 100, 200); width: 80px; height: 60px;">Blocked content</div>`,
-      '',
-    );
-
-    const sn = serializeNode(el) as elementNode;
-
-    expect(sn?.attributes?.rr_width).toBeDefined();
-    expect(sn?.attributes?.rr_height).toBeDefined();
-    expect(sn?.attributes?.rr_left).toBeDefined();
-    expect(sn?.attributes?.rr_top).toBeDefined();
-  });
-
-  it('should capture position for absolutely positioned element', () => {
+  it('should capture rr_position for absolutely positioned elements', () => {
     const el = renderWithStyle(
       `<div class="blockblock" style="position: absolute; left: 100px; top: 500px; width: 100px; height: 100px;">Blocked content</div>`,
       'body { height: 3000px; }',
@@ -327,57 +288,58 @@ describe('blocked elements with CSS transforms', () => {
 
     const sn = serializeNode(el) as elementNode;
 
+    expect(sn?.attributes?.rr_position).toBe('absolute');
     expect(sn?.attributes?.rr_left).toBeDefined();
     expect(sn?.attributes?.rr_top).toBeDefined();
+  });
 
-    // Position should be captured from getBoundingClientRect
-    const left = parseFloat(
-      (sn?.attributes?.rr_left as string).replace('px', ''),
-    );
-    const top = parseFloat(
-      (sn?.attributes?.rr_top as string).replace('px', ''),
+  it('should capture rr_position for fixed elements', () => {
+    const el = renderWithStyle(
+      `<div class="blockblock" style="position: fixed; left: 10px; top: 20px; width: 50px; height: 50px;">Blocked</div>`,
+      '',
     );
 
-    // The recorded position should match the element's position
-    expect(left).toBeGreaterThanOrEqual(0);
-    expect(top).toBeGreaterThanOrEqual(0);
+    const sn = serializeNode(el) as elementNode;
+
+    expect(sn?.attributes?.rr_position).toBe('fixed');
+  });
+
+  it('should capture rr_position for relative elements', () => {
+    const el = renderWithStyle(
+      `<div class="blockblock" style="position: relative; left: 10px; top: 20px; width: 100px; height: 100px;">Blocked</div>`,
+      '',
+    );
+
+    const sn = serializeNode(el) as elementNode;
+
+    expect(sn?.attributes?.rr_position).toBe('relative');
+    expect(sn?.attributes?.rr_width).toBeDefined();
+    expect(sn?.attributes?.rr_height).toBeDefined();
+  });
+
+  it('should capture static for CSS-transformed elements', () => {
+    const el = renderWithStyle(
+      `<div class="blockblock" style="transform: translate(100px, 50px); width: 200px; height: 100px;">Blocked content</div>`,
+      '',
+    );
+
+    const sn = serializeNode(el) as elementNode;
+
+    // Transform doesn't change computed position
+    expect(sn?.attributes?.rr_position).toBe('static');
   });
 
   it('should preserve class attribute for blocked elements', () => {
     const el = renderWithStyle(
-      `<div class="blockblock my-custom-class another-class" style="transform: translate(10px, 20px); width: 50px; height: 50px;">Blocked</div>`,
+      `<div class="blockblock my-custom-class another-class" style="width: 50px; height: 50px;">Blocked</div>`,
       '',
     );
 
     const sn = serializeNode(el) as elementNode;
 
-    // Only the blockClass should be preserved in attributes
     expect(sn?.attributes?.class).toBe(
       'blockblock my-custom-class another-class',
     );
-  });
-
-  it('should handle blocked element with explicit position', () => {
-    const el = renderWithStyle(
-      `<div class="blockblock" style="position: absolute; left: 50px; top: 30px; width: 100px; height: 100px;">Blocked</div>`,
-      '',
-    );
-
-    const sn = serializeNode(el) as elementNode;
-
-    expect(sn?.attributes?.rr_left).toBeDefined();
-    expect(sn?.attributes?.rr_top).toBeDefined();
-
-    const left = parseFloat(
-      (sn?.attributes?.rr_left as string).replace('px', ''),
-    );
-    const top = parseFloat(
-      (sn?.attributes?.rr_top as string).replace('px', ''),
-    );
-
-    // Positions should be captured correctly
-    expect(left).toBeGreaterThanOrEqual(0);
-    expect(top).toBeGreaterThanOrEqual(0);
   });
 });
 

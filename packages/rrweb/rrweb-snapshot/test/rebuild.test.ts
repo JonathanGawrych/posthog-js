@@ -106,8 +106,8 @@ describe('rebuild', function () {
     });
   });
 
-  describe('rr_left/rr_top (CSS transform fix)', function () {
-    it('rebuild blocked element with position for CSS transforms', function () {
+  describe('rr_position (blocked element positioning)', function () {
+    it('rebuild absolute element with position + coordinates', function () {
       const node = buildNodeWithSN(
         {
           id: 1,
@@ -119,6 +119,7 @@ describe('rebuild', function () {
             rr_height: '100px',
             rr_left: '250px',
             rr_top: '150px',
+            rr_position: 'absolute',
           },
           childNodes: [],
         },
@@ -136,7 +137,101 @@ describe('rebuild', function () {
       expect(node.style.position).toBe('absolute');
     });
 
-    it('rebuild blocked element at (0,0) position', function () {
+    it('rebuild fixed element with position + coordinates', function () {
+      const node = buildNodeWithSN(
+        {
+          id: 1,
+          tagName: 'div',
+          type: NodeType.Element,
+          attributes: {
+            class: 'ph-no-capture',
+            rr_width: '50px',
+            rr_height: '50px',
+            rr_left: '10px',
+            rr_top: '20px',
+            rr_position: 'fixed',
+          },
+          childNodes: [],
+        },
+        {
+          doc: document,
+          mirror,
+          hackCss: false,
+          cache,
+        },
+      ) as HTMLDivElement;
+      expect(node.style.position).toBe('fixed');
+      expect(node.style.left).toBe('10px');
+      expect(node.style.top).toBe('20px');
+    });
+
+    it('rebuild static element uses flow dimensions and stays in flow', function () {
+      const node = buildNodeWithSN(
+        {
+          id: 1,
+          tagName: 'div',
+          type: NodeType.Element,
+          attributes: {
+            class: 'ph-no-capture',
+            rr_width: '250px',
+            rr_height: '120px',
+            rr_left: '50px',
+            rr_top: '300px',
+            rr_flow_width: '200px',
+            rr_flow_height: '100px',
+            rr_position: 'static',
+          },
+          childNodes: [],
+        },
+        {
+          doc: document,
+          mirror,
+          hackCss: false,
+          cache,
+        },
+      ) as HTMLDivElement;
+      // Uses flow dimensions, not visual
+      expect(node.style.width).toBe('200px');
+      expect(node.style.height).toBe('100px');
+      // Static: stays in flow, no position/left/top applied
+      expect(node.style.position).toBe('');
+      expect(node.style.left).toBe('');
+      expect(node.style.top).toBe('');
+    });
+
+    it('rebuild relative element in flow without position/left/top', function () {
+      const node = buildNodeWithSN(
+        {
+          id: 1,
+          tagName: 'div',
+          type: NodeType.Element,
+          attributes: {
+            class: 'ph-no-capture',
+            rr_width: '100px',
+            rr_height: '100px',
+            rr_left: '60px',
+            rr_top: '220px',
+            rr_position: 'relative',
+          },
+          childNodes: [],
+        },
+        {
+          doc: document,
+          mirror,
+          hackCss: false,
+          cache,
+        },
+      ) as HTMLDivElement;
+      expect(node.style.width).toBe('100px');
+      expect(node.style.height).toBe('100px');
+      expect(node.style.position).toBe('');
+      expect(node.style.left).toBe('');
+      expect(node.style.top).toBe('');
+    });
+
+    it('old recordings without rr_position default to static (in-flow)', function () {
+      // Backwards compatibility: old recordings have rr_left/rr_top
+      // but no rr_position. Default to static so layout is preserved.
       const node = buildNodeWithSN(
         {
           id: 1,
@@ -158,12 +253,43 @@ describe('rebuild', function () {
           cache,
         },
       ) as HTMLDivElement;
+      expect(node.style.width).toBe('50px');
+      expect(node.style.height).toBe('50px');
+      // No rr_position → default to static, skip position/left/top
+      expect(node.style.position).toBe('');
+      expect(node.style.left).toBe('');
+      expect(node.style.top).toBe('');
+    });
+
+    it('rebuild absolute element at (0,0)', function () {
+      const node = buildNodeWithSN(
+        {
+          id: 1,
+          tagName: 'div',
+          type: NodeType.Element,
+          attributes: {
+            class: 'ph-no-capture',
+            rr_width: '50px',
+            rr_height: '50px',
+            rr_left: '0px',
+            rr_top: '0px',
+            rr_position: 'absolute',
+          },
+          childNodes: [],
+        },
+        {
+          doc: document,
+          mirror,
+          hackCss: false,
+          cache,
+        },
+      ) as HTMLDivElement;
       expect(node.style.left).toBe('0px');
       expect(node.style.top).toBe('0px');
       expect(node.style.position).toBe('absolute');
     });
 
-    it('rebuild blocked element with large position values', function () {
+    it('rebuild element with large position values', function () {
       const node = buildNodeWithSN(
         {
           id: 1,
@@ -175,6 +301,7 @@ describe('rebuild', function () {
             rr_height: '100px',
             rr_left: '1920px',
             rr_top: '1080px',
+            rr_position: 'absolute',
           },
           childNodes: [],
         },
@@ -187,9 +314,10 @@ describe('rebuild', function () {
       ) as HTMLDivElement;
       expect(node.style.left).toBe('1920px');
       expect(node.style.top).toBe('1080px');
+      expect(node.style.position).toBe('absolute');
     });
 
-    it('rebuild blocked element with decimal position values', function () {
+    it('rebuild element with decimal position values', function () {
       const node = buildNodeWithSN(
         {
           id: 1,
@@ -201,6 +329,7 @@ describe('rebuild', function () {
             rr_height: '50.25px',
             rr_left: '123.456px',
             rr_top: '789.012px',
+            rr_position: 'absolute',
           },
           childNodes: [],
         },

@@ -322,16 +322,52 @@ function buildNode(
           }
         }
 
-        if (name === 'rr_width') {
-          (node as HTMLElement).style.setProperty('width', value.toString());
+        if (name === 'rr_position') {
+          const el = node as HTMLElement;
+          const pos = value.toString();
+          if (pos === 'absolute' || pos === 'fixed') {
+            // Out of flow: use visual box for position and size
+            el.style.setProperty('position', pos);
+            const left = specialAttributes['rr_left'];
+            const top = specialAttributes['rr_top'];
+            if (left !== undefined) {
+              el.style.setProperty('left', left.toString());
+            }
+            if (top !== undefined) {
+              el.style.setProperty('top', top.toString());
+            }
+            el.style.setProperty('width', (specialAttributes['rr_width'] ?? '').toString());
+            el.style.setProperty('height', (specialAttributes['rr_height'] ?? '').toString());
+          } else {
+            // In flow (static/relative/sticky): use flow dimensions,
+            // don't set position/left/top so the element stays in flow.
+            // Fall back to rr_width/rr_height if flow dimensions missing.
+            const flowW = specialAttributes['rr_flow_width'] ?? specialAttributes['rr_width'];
+            const flowH = specialAttributes['rr_flow_height'] ?? specialAttributes['rr_height'];
+            if (flowW !== undefined) {
+              el.style.setProperty('width', flowW.toString());
+            }
+            if (flowH !== undefined) {
+              el.style.setProperty('height', flowH.toString());
+            }
+          }
+        } else if (name === 'rr_width') {
+          // Old recordings without rr_position: set width/height only,
+          // default to static (in-flow). rr_left/rr_top are ignored.
+          if (!specialAttributes['rr_position']) {
+            (node as HTMLElement).style.setProperty('width', value.toString());
+          }
         } else if (name === 'rr_height') {
-          (node as HTMLElement).style.setProperty('height', value.toString());
-        } else if (name === 'rr_left') {
-          (node as HTMLElement).style.setProperty('left', value.toString());
-          (node as HTMLElement).style.setProperty('position', 'absolute');
-        } else if (name === 'rr_top') {
-          (node as HTMLElement).style.setProperty('top', value.toString());
-          (node as HTMLElement).style.setProperty('position', 'absolute');
+          if (!specialAttributes['rr_position']) {
+            (node as HTMLElement).style.setProperty('height', value.toString());
+          }
+        } else if (
+          name === 'rr_left' ||
+          name === 'rr_top' ||
+          name === 'rr_flow_width' ||
+          name === 'rr_flow_height'
+        ) {
+          // Consumed by rr_position handler above
         } else if (
           name === 'rr_mediaCurrentTime' &&
           typeof value === 'number'
